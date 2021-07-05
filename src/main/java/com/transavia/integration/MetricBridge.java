@@ -18,7 +18,15 @@ public class MetricBridge implements NotificationListener {
 
     private static final String c_jvm_arg_logLevel = c_jvm_arg_prefix + ".logLevel";
 
+    private static final String c_jvm_arg_bwengine_domain = c_jvm_arg_prefix + ".bwengine.domain";
+    private static final String c_jvm_arg_bwengine_application = c_jvm_arg_prefix + ".bwengine.application";
+    private static final String c_jvm_arg_bwengine_instance = c_jvm_arg_prefix + ".bwengine.instance";
+
     private static final String c_jvm_arg_graphite_metricPattern = c_jvm_arg_prefix + ".graphite.metricPattern";
+
+    private static final String c_jvm_arg_graphite_metricPrefix = c_jvm_arg_prefix + ".graphite.prefix";
+    private static final String c_jvm_arg_graphite_metricPrefix_defaultValue = "integration";
+
     private static final String c_jvm_arg_graphite_metricPattern_defaultValue = "prefix,domain,application,instance,method";
 
     private static final String c_jvm_arg_jmx = "Jmx.Enabled";
@@ -72,10 +80,29 @@ public class MetricBridge implements NotificationListener {
         };
 
         /**
+         * Determine the <prefix> from the JVM properties, and determine <domain>, <application>
+         * and <instance> by reading the BWEngine's .tra file.
+         */
+        String engineAMIDisplayName = BWUtils.getAMIDisplayName();
+        String[] instanceNameParts = engineAMIDisplayName.split("\\.");
+        String prefix = System.getProperty(c_jvm_arg_graphite_metricPrefix, c_jvm_arg_graphite_metricPrefix_defaultValue);
+        String domain = System.getProperty(c_jvm_arg_bwengine_domain, instanceNameParts[4]);
+        String application = System.getProperty(c_jvm_arg_bwengine_application, instanceNameParts[5]);
+        String instance = System.getProperty(c_jvm_arg_bwengine_instance, instanceNameParts[6]);
+
+        LOGGER.info(String.format("BWEngine '%s' parsed as prefix:%s, domain:%s, application:%s, instance:%s.", engineAMIDisplayName, prefix, domain, application, instance));
+
+        /**
          * Construct the MicroMeter metric registry, based on the Graphite configuration.
+         * Also, pass on the determined <prefix>, <domain>, <application> and <instance>.
          */
         registry = new GraphiteMeterRegistry(graphiteConfig, Clock.SYSTEM);
-        registry.config().commonTags("prefix", "integration", "domain", "TST", "application", "Website_Adapter", "instance", "LB1");
+        registry.config().commonTags(
+                "prefix", prefix,
+                "domain", domain,
+                "application", application,
+                "instance", instance
+        );
         Metrics.addRegistry(registry);
         LOGGER.config("Constructed and registered the metric registry");
 
