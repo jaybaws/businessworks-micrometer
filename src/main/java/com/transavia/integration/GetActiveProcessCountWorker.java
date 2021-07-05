@@ -1,5 +1,4 @@
 package com.transavia.integration;
-import io.micrometer.core.instrument.MeterRegistry;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import java.util.logging.Level;
@@ -11,12 +10,10 @@ public class GetActiveProcessCountWorker implements Runnable {
 
     private MBeanServerConnection mbsc;
     private ObjectName objectName;
-    private MeterRegistry registry;
 
-    public GetActiveProcessCountWorker(MBeanServerConnection mbsc, ObjectName objectName, MeterRegistry registry) {
+    public GetActiveProcessCountWorker(MBeanServerConnection mbsc, ObjectName objectName) {
         this.mbsc = mbsc;
         this.objectName = objectName;
-        this.registry = registry;
     }
 
     @Override

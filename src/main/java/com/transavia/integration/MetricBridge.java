@@ -1,6 +1,5 @@
 package com.transavia.integration;
 import io.micrometer.core.instrument.*;
-import io.micrometer.core.instrument.util.HierarchicalNameMapper;
 import io.micrometer.graphite.GraphiteConfig;
 import io.micrometer.graphite.GraphiteMeterRegistry;
 import javax.management.*;
@@ -14,7 +13,14 @@ import java.util.logging.*;
 public class MetricBridge implements NotificationListener {
 
     private static final int c_executorService_corePoolSize = 10;
-    private static final String c_jvm_arg_graphite_prefix = "com.transavia.integration";
+
+    private static final String c_jvm_arg_prefix = "com.transavia.integration";
+
+    private static final String c_jvm_arg_logLevel = c_jvm_arg_prefix + ".logLevel";
+
+    private static final String c_jvm_arg_graphite_metricPattern = c_jvm_arg_prefix + ".graphite.metricPattern";
+    private static final String c_jvm_arg_graphite_metricPattern_defaultValue = "prefix,domain,application,instance,method";
+
     private static final String c_jvm_arg_jmx = "Jmx.Enabled";
 
     private static final Logger LOGGER = Logger.getLogger(MetricBridge.class.getName());
@@ -30,6 +36,10 @@ public class MetricBridge implements NotificationListener {
     }
 
     public MetricBridge() {
+        String level = System.getProperty(c_jvm_arg_logLevel, "INFO");
+        LOGGER.setLevel(Level.parse(level));
+        LOGGER.config(String.format("Set logLevel to '%s'.", level));
+
         /**
          * Get the MBeanServer where the bwengine's MBean will be hosted. It will be in the default one (platformMBeanServer)
          */
@@ -43,20 +53,20 @@ public class MetricBridge implements NotificationListener {
 
             @Override
             public String[] tagsAsPrefix() {
-                return new String[] {
-                        "store",
-                        "environment",
-                        "application",
-                        "instance",
-                        "method"
-                };
+                String prop = System.getProperty(c_jvm_arg_graphite_metricPattern, c_jvm_arg_graphite_metricPattern_defaultValue);
+
+                LOGGER.config(String.format("tagsAsPrefix property set to '%s'.", prop));
+
+                return prop.split(",");
             }
 
             @Override
             public String get(String k) {
-                String key = c_jvm_arg_graphite_prefix + "." + k;
+                String key = c_jvm_arg_prefix + "." + k;
                 String value = System.getProperty(key);
-                LOGGER.info(String.format("GraphiteConfig queried property '%s'. Got value '%s'.", key, value));
+
+                LOGGER.config(String.format("GraphiteConfig queried for property '%s'. Returned value '%s'.", key, value));
+
                 return value;
             }
         };
@@ -65,8 +75,9 @@ public class MetricBridge implements NotificationListener {
          * Construct the MicroMeter metric registry, based on the Graphite configuration.
          */
         registry = new GraphiteMeterRegistry(graphiteConfig, Clock.SYSTEM);
-
-        registry.config().commonTags("store", "integration", "environment", "TST", "application", "Website_Adapter", "instance", "LB1");
+        registry.config().commonTags("prefix", "integration", "domain", "TST", "application", "Website_Adapter", "instance", "LB1");
+        Metrics.addRegistry(registry);
+        LOGGER.config("Constructed and registered the metric registry");
 
         /**
          * Listen to new MBean's being registered.
@@ -91,6 +102,7 @@ public class MetricBridge implements NotificationListener {
 
             // Force the bwengine to enable JMX, otherwise our plan dies in vain...
             System.setProperty(c_jvm_arg_jmx, "true");
+            LOGGER.config("Programmatically enabled JMX on the BWEngine that's about to start.");
 
         } catch (Throwable t) {
             LOGGER.log(Level.SEVERE, "Unable to register as an MBeanServer notification listener!", t);
@@ -121,15 +133,16 @@ public class MetricBridge implements NotificationListener {
                  * Spread the CPU load by setting progressively increasing initlayDelay values.
                  *
                  */
-                executorService.scheduleWithFixedDelay(new GetActivitiesWorker(server, engineHandle, registry), 5, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetProcessStartersWorker(server, engineHandle, registry), 10, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetProcessDefinitionsWorker(server, engineHandle, registry), 15, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetMemoryUsageWorker(server, engineHandle, registry), 20, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetActiveProcessCountWorker(server, engineHandle, registry), 25, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetProcessCountWorker(server, engineHandle, registry), 30, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetActivitiesWorker(server, engineHandle), 5, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetProcessStartersWorker(server, engineHandle), 10, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetProcessDefinitionsWorker(server, engineHandle), 15, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetMemoryUsageWorker(server, engineHandle), 20, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetActiveProcessCountWorker(server, engineHandle), 25, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetProcessCountWorker(server, engineHandle), 30, 60, TimeUnit.SECONDS);
+                LOGGER.info("Scheduled the workers!");
 
             } else if (MBeanServerNotification.UNREGISTRATION_NOTIFICATION.equals(mbs.getType())) {
-                LOGGER.info("Lost the bwengine's HMA MBean [" + mbs.getMBeanName() + "]");
+                LOGGER.warning("Lost the bwengine's HMA MBean [" + mbs.getMBeanName() + "]");
                 if (mbs.getMBeanName() == engineHandle) {
                     engineHandle = null;
                     executorService.shutdown();
@@ -141,7 +154,9 @@ public class MetricBridge implements NotificationListener {
 
 /*
  * Some more good reads:
+ *
  * https://docs.microsoft.com/en-us/azure/azure-monitor/app/java-in-process-agent#send-custom-metrics-using-micrometer
  * https://micrometer.io/docs/concepts#_global_registry
  * https://micrometer.io/docs/concepts#_gauges
+ *
  */

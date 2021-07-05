@@ -1,7 +1,6 @@
 package com.transavia.integration;
-import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tag;
-
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import java.util.ArrayList;
@@ -15,12 +14,10 @@ public class GetProcessCountWorker implements Runnable {
 
     private MBeanServerConnection mbsc;
     private ObjectName objectName;
-    private MeterRegistry registry;
 
-    public GetProcessCountWorker(MBeanServerConnection mbsc, ObjectName objectName, MeterRegistry registry) {
+    public GetProcessCountWorker(MBeanServerConnection mbsc, ObjectName objectName) {
         this.mbsc = mbsc;
         this.objectName = objectName;
-        this.registry = registry;
     }
 
     @Override
@@ -33,7 +30,7 @@ public class GetProcessCountWorker implements Runnable {
             if (result != null) {
                 // @TODO: verify
 
-                registry.gauge("SampleMetric", toTags("method=GetProcessCount"), result);
+                Metrics.gauge("SampleMetric", toTags("method=GetProcessCount"), result);
             }
         } catch (Throwable t) {
             LOGGER.log(Level.WARNING, "Exception invoking 'GetProcessCount'...", t);

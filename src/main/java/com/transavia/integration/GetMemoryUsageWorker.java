@@ -1,5 +1,4 @@
 package com.transavia.integration;
-import io.micrometer.core.instrument.MeterRegistry;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
 import javax.management.openmbean.CompositeDataSupport;
@@ -12,12 +11,10 @@ public class GetMemoryUsageWorker implements Runnable {
 
     private MBeanServerConnection mbsc;
     private ObjectName objectName;
-    private MeterRegistry registry;
 
-    public GetMemoryUsageWorker(MBeanServerConnection mbsc, ObjectName objectName, MeterRegistry registry) {
+    public GetMemoryUsageWorker(MBeanServerConnection mbsc, ObjectName objectName) {
         this.mbsc = mbsc;
         this.objectName = objectName;
-        this.registry = registry;
     }
 
     @Override
