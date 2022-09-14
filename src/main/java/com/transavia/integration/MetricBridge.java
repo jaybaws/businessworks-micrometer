@@ -1,4 +1,8 @@
 package com.transavia.integration;
+import com.transavia.integration.util.BWUtils;
+import com.transavia.integration.workers.*;
+import io.micrometer.azuremonitor.AzureMonitorConfig;
+import io.micrometer.azuremonitor.AzureMonitorMeterRegistry;
 import io.micrometer.core.instrument.*;
 import io.micrometer.graphite.GraphiteConfig;
 import io.micrometer.graphite.GraphiteMeterRegistry;
@@ -15,6 +19,8 @@ public class MetricBridge implements NotificationListener {
     private static final int c_executorService_corePoolSize = 10;
 
     private static final String c_jvm_arg_prefix = "com.transavia.integration";
+
+    private static final String c_jvm_arg_registries = c_jvm_arg_prefix + ".registries";
 
     private static final String c_jvm_arg_logLevel = c_jvm_arg_prefix + ".logLevel";
 
@@ -36,11 +42,27 @@ public class MetricBridge implements NotificationListener {
     private final MBeanServerConnection server;
     private ObjectName engineHandle;
     private ScheduledExecutorService executorService;
-    private MeterRegistry registry;
+
+    private static boolean isBusinessWorksEngine() {
+        return true; // @TODO
+    }
+
+    private static boolean addGraphiteMeterRegistry() {
+        return System.getProperty(c_jvm_arg_registries, "").contains("Graphite");
+    }
+
+    private static boolean addAzureMonitorMeterRegistry() {
+        return System.getProperty(c_jvm_arg_registries, "").contains("AzureMonitor");
+    }
 
     @SuppressWarnings("unused")
     public static void premain(String agentArgs) {
-        MetricBridge bridge = new MetricBridge();
+        if (isBusinessWorksEngine()) {
+            LOGGER.info("Looks like a BusinessWorks engine, so instrumenting!");
+            MetricBridge bridge = new MetricBridge();
+        } else {
+            LOGGER.info("Not a BusinessWorks engine. Exiting and not instrumenting...");
+        }
     }
 
     public MetricBridge() {
@@ -54,56 +76,88 @@ public class MetricBridge implements NotificationListener {
         server = ManagementFactory.getPlatformMBeanServer();
 
         /**
-         * Define the configuration to our Graphite back-end. We read from a JVM argument, but default to
-         * 'localhost' if it is absent.
-         */
-        GraphiteConfig graphiteConfig = new GraphiteConfig() {
-
-            @Override
-            public String[] tagsAsPrefix() {
-                String prop = System.getProperty(c_jvm_arg_graphite_metricPattern, c_jvm_arg_graphite_metricPattern_defaultValue);
-
-                LOGGER.config(String.format("tagsAsPrefix property set to '%s'.", prop));
-
-                return prop.split(",");
-            }
-
-            @Override
-            public String get(String k) {
-                String key = c_jvm_arg_prefix + "." + k;
-                String value = System.getProperty(key);
-
-                LOGGER.config(String.format("GraphiteConfig queried for property '%s'. Returned value '%s'.", key, value));
-
-                return value;
-            }
-        };
-
-        /**
          * Determine the <prefix> from the JVM properties, and determine <domain>, <application>
          * and <instance> by reading the BWEngine's .tra file.
          */
         String engineAMIDisplayName = BWUtils.getAMIDisplayName();
         String[] instanceNameParts = engineAMIDisplayName.split("\\.");
-        String prefix = System.getProperty(c_jvm_arg_graphite_metricPrefix, c_jvm_arg_graphite_metricPrefix_defaultValue);
         String domain = System.getProperty(c_jvm_arg_bwengine_domain, instanceNameParts[4]);
         String application = System.getProperty(c_jvm_arg_bwengine_application, instanceNameParts[5]);
         String instance = System.getProperty(c_jvm_arg_bwengine_instance, instanceNameParts[6]);
 
-        LOGGER.info(String.format("BWEngine '%s' parsed as prefix:%s, domain:%s, application:%s, instance:%s.", engineAMIDisplayName, prefix, domain, application, instance));
+        LOGGER.info(String.format("BWEngine '%s' parsed as domain:%s, application:%s, instance:%s.", engineAMIDisplayName, domain, application, instance));
 
         /**
          * Construct the MicroMeter metric registry, based on the Graphite configuration.
          * Also, pass on the determined <prefix>, <domain>, <application> and <instance>.
          */
-        registry = new GraphiteMeterRegistry(graphiteConfig, Clock.SYSTEM);
-        registry.config().commonTags(
-                "prefix", prefix,
+
+
+        /**
+         * Set up the global (composite) Metric registry. Provide the global config generically.
+         */
+        Metrics.globalRegistry.config().commonTags(
                 "domain", domain,
                 "application", application,
                 "instance", instance
         );
-        Metrics.addRegistry(registry);
+
+        // Metrics.addRegistry(new SimpleMeterRegistry());
+
+        /**
+         * Set up a GraphiteMeterRegistry, and add it to ghe global (composite) registry
+         */
+        if (addGraphiteMeterRegistry()) {
+            /**
+             * Define the configuration to our Graphite back-end. We read from a JVM argument, but default to
+             * 'localhost' if it is absent.
+             */
+            GraphiteConfig graphiteConfig = new GraphiteConfig() {
+
+                @Override
+                public String[] tagsAsPrefix() {
+                    String prop = System.getProperty(c_jvm_arg_graphite_metricPattern, c_jvm_arg_graphite_metricPattern_defaultValue);
+
+                    LOGGER.config(String.format("tagsAsPrefix property set to '%s'.", prop));
+
+                    return prop.split(",");
+                }
+
+                @Override
+                public String get(String k) {
+                    String key = c_jvm_arg_prefix + "." + k;
+                    String value = System.getProperty(key);
+
+                    LOGGER.config(String.format("GraphiteConfig queried for property '%s'. Returned value '%s'.", key, value));
+
+                    return value;
+                }
+            };
+
+            String prefix = System.getProperty(c_jvm_arg_graphite_metricPrefix, c_jvm_arg_graphite_metricPrefix_defaultValue);
+
+            MeterRegistry graphiteRegistry = new GraphiteMeterRegistry(graphiteConfig, Clock.SYSTEM);
+            graphiteRegistry.config().commonTags("prefix", prefix);
+            Metrics.addRegistry(graphiteRegistry);
+        }
+
+        if (addAzureMonitorMeterRegistry()) {
+            AzureMonitorConfig azureMonitorConfig = new AzureMonitorConfig() {
+                @Override
+                public String get(String k) {
+                    String key = c_jvm_arg_prefix + "." + k;
+                    String value = System.getProperty(key);
+
+                    LOGGER.info(String.format("AzureMonitorConfig queried for property '%s'. Returned value '%s'.", key, value));
+
+                    return value;
+                }
+            };
+
+            MeterRegistry azureMonitorRegistry = new AzureMonitorMeterRegistry(azureMonitorConfig, Clock.SYSTEM);
+            Metrics.addRegistry(azureMonitorRegistry);
+        }
+
         LOGGER.config("Constructed and registered the metric registry");
 
         /**
@@ -160,10 +214,10 @@ public class MetricBridge implements NotificationListener {
                  * Spread the CPU load by setting progressively increasing initlayDelay values.
                  *
                  */
-                executorService.scheduleWithFixedDelay(new GetActivitiesWorker(server, engineHandle), 5, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetMemoryUsageWorker(server, engineHandle), 5, 60, TimeUnit.SECONDS);
                 executorService.scheduleWithFixedDelay(new GetProcessStartersWorker(server, engineHandle), 10, 60, TimeUnit.SECONDS);
                 executorService.scheduleWithFixedDelay(new GetProcessDefinitionsWorker(server, engineHandle), 15, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetMemoryUsageWorker(server, engineHandle), 20, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetActivitiesWorker(server, engineHandle), 20, 60, TimeUnit.SECONDS);
                 executorService.scheduleWithFixedDelay(new GetActiveProcessCountWorker(server, engineHandle), 25, 60, TimeUnit.SECONDS);
                 executorService.scheduleWithFixedDelay(new GetProcessCountWorker(server, engineHandle), 30, 60, TimeUnit.SECONDS);
                 LOGGER.info("Scheduled the workers!");

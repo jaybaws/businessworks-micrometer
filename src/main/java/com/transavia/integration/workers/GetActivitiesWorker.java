@@ -1,4 +1,5 @@
-package com.transavia.integration;
+package com.transavia.integration.workers;
+import com.transavia.integration.MetricBridge;
 import javax.management.*;
 import javax.management.openmbean.TabularDataSupport;
 import java.util.logging.Level;
@@ -22,9 +23,10 @@ public class GetActivitiesWorker implements Runnable {
 
         try {
             TabularDataSupport result = (TabularDataSupport) mbsc.invoke(objectName, "GetActivities", new Object[] { null }, new String[] { String.class.getName() });
+
             if (result != null) {
                 // @TODO: process!
-
+                System.out.println("GetActivities: "+ result.toString());
             }
         } catch (Throwable t) {
             LOGGER.log(Level.WARNING, "Exception invoking 'GetActivities'...", t);

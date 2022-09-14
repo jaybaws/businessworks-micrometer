@@ -1,7 +1,15 @@
-package com.transavia.integration;
+package com.transavia.integration.workers;
+import com.transavia.integration.MetricBridge;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
+import javax.management.openmbean.CompositeDataSupport;
 import javax.management.openmbean.TabularDataSupport;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -11,10 +19,31 @@ public class GetProcessStartersWorker implements Runnable {
 
     private MBeanServerConnection mbsc;
     private ObjectName objectName;
+    private Map<String, AtomicLong> metrics = new HashMap<String, AtomicLong>();
 
     public GetProcessStartersWorker(MBeanServerConnection mbsc, ObjectName objectName) {
         this.mbsc = mbsc;
         this.objectName = objectName;
+    }
+
+    private AtomicLong metric(String processDefinitionName, String starterName, String metricName) {
+        String uniqueId = processDefinitionName + "/" + starterName + "/" + metricName;
+
+        AtomicLong m = metrics.get(uniqueId);
+        if (m == null) {
+            m = Metrics.gauge(
+                    metricName,
+                    Arrays.asList(
+                            Tag.of("method", "GetProcessStarters"),
+                            Tag.of("process", processDefinitionName),
+                            Tag.of("activity", starterName)
+                    ),
+                    new AtomicLong(-1)
+            );
+            metrics.put(uniqueId, m);
+        }
+
+        return m;
     }
 
     @Override
@@ -25,8 +54,60 @@ public class GetProcessStartersWorker implements Runnable {
             TabularDataSupport result = (TabularDataSupport) mbsc.invoke(objectName, "GetProcessStarters", null, null);
 
             if (result != null) {
-                // @TODO: process
+                for (Object value : result.values()) {
+                    CompositeDataSupport resultItem = (CompositeDataSupport) value;
 
+                    String processDefinition = (String) resultItem.get("ProcessDef");
+
+                    String starterName = (String) resultItem.get("Name");
+                    String status = (String) resultItem.get("Status");
+
+                    long valCompleted = (Long) resultItem.get("Completed");
+                    metric(processDefinition, starterName, "bwengine.starters.completed").set(valCompleted);
+
+                    long valCreated = (Long) resultItem.get("Created");
+                    metric(processDefinition, starterName, "bwengine.starters.created").set(valCreated);
+
+                    long valCreationRate = (Long) resultItem.get("CreationRate");
+                    metric(processDefinition, starterName, "bwengine.starters.creationrate").set(valCreationRate);
+
+                    long valDuration = (Long) resultItem.get("Duration");
+                    metric(processDefinition, starterName, "bwengine.starters.duration").set(valDuration);
+
+                    long valRunning = (Long) resultItem.get("Running");
+                    metric(processDefinition, starterName, "bwengine.starters.running").set(valRunning);
+
+                    long valStatus;
+                    switch (status) {
+                        /* @TODO: flow controlled? Are these values correct?
+                           source: https://docs.tibco.com/pub/activematrix_businessworks/5.14.1/doc/pdf/TIB_BW_5.14.1_administration.pdf?id=4
+                         */
+                        case "INACTIVE":
+                            valStatus = 0;
+                            break;
+                        case "READY":
+                            valStatus = 1;
+                            break;
+                        case "ACTIVE":
+                            valStatus = 2;
+                            break;
+                        default:
+                            valStatus = -1;
+                            break;
+                    }
+                    metric(processDefinition, starterName, "bwengine.starters.status").set(valStatus);
+
+                    LOGGER.info(
+                            String.format(
+                                    "[GetProcessStarters] completed=%d, created=%d, rate=%d, duration=%d, running=%d.",
+                                    valCompleted,
+                                    valCreated,
+                                    valCreationRate,
+                                    valDuration,
+                                    valRunning
+                            )
+                    );
+                }
 
             }
         } catch (Throwable t) {

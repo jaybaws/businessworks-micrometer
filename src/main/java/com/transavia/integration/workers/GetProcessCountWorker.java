@@ -1,10 +1,11 @@
-package com.transavia.integration;
+package com.transavia.integration.workers;
+import com.transavia.integration.MetricBridge;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tag;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -14,6 +15,8 @@ public class GetProcessCountWorker implements Runnable {
 
     private MBeanServerConnection mbsc;
     private ObjectName objectName;
+
+    private AtomicInteger processCount = Metrics.gauge("bwengine.process.count", Arrays.asList(Tag.of("method", "GetProcessCount")), new AtomicInteger(-1));
 
     public GetProcessCountWorker(MBeanServerConnection mbsc, ObjectName objectName) {
         this.mbsc = mbsc;
@@ -25,12 +28,17 @@ public class GetProcessCountWorker implements Runnable {
         LOGGER.entering(this.getClass().getCanonicalName(), "run");
 
         try {
-            Integer result = (Integer) mbsc.invoke(objectName, "GetProcessCount", null, null);
+            Integer valProcessCount = (Integer) mbsc.invoke(objectName, "GetProcessCount", null, null);
 
-            if (result != null) {
-                // @TODO: verify
+            if (valProcessCount != null) {
+                processCount.set(valProcessCount);
 
-                Metrics.gauge("SampleMetric", toTags("method=GetProcessCount"), result);
+                LOGGER.info(
+                        String.format(
+                                "[GetProcessCount] count=%d.",
+                                valProcessCount
+                        )
+                );
             }
         } catch (Throwable t) {
             LOGGER.log(Level.WARNING, "Exception invoking 'GetProcessCount'...", t);
@@ -38,13 +46,4 @@ public class GetProcessCountWorker implements Runnable {
 
         LOGGER.exiting(this.getClass().getCanonicalName(), "run");
     }
-
-    private static Iterable<Tag> toTags(String... tags) {
-        List<Tag> out = new ArrayList<Tag>();
-        for (String t : tags) {
-            out.add(Tag.of(t.split("=")[0], t.split("=")[1]));
-        }
-        return out;
-    }
-
 }

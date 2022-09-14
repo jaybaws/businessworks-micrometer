@@ -1,4 +1,4 @@
-package com.transavia.integration;
+package com.transavia.integration.util;
 import java.io.FileInputStream;
 import java.util.Properties;
 
