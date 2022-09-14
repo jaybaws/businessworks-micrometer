@@ -220,6 +220,7 @@ public class MetricBridge implements NotificationListener {
                 executorService.scheduleWithFixedDelay(new GetActivitiesWorker(server, engineHandle), 20, 60, TimeUnit.SECONDS);
                 executorService.scheduleWithFixedDelay(new GetActiveProcessCountWorker(server, engineHandle), 25, 60, TimeUnit.SECONDS);
                 executorService.scheduleWithFixedDelay(new GetProcessCountWorker(server, engineHandle), 30, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetExecInfoWorker(server, engineHandle), 35, 60, TimeUnit.SECONDS);
                 LOGGER.info("Scheduled the workers!");
 
             } else if (MBeanServerNotification.UNREGISTRATION_NOTIFICATION.equals(mbs.getType())) {

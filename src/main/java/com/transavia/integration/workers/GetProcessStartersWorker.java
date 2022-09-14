@@ -79,13 +79,10 @@ public class GetProcessStartersWorker implements Runnable {
 
                     long valStatus;
                     switch (status) {
-                        /* @TODO: flow controlled? Are these values correct?
-                           source: https://docs.tibco.com/pub/activematrix_businessworks/5.14.1/doc/pdf/TIB_BW_5.14.1_administration.pdf?id=4
-                         */
                         case "INACTIVE":
                             valStatus = 0;
                             break;
-                        case "READY":
+                        case "FLOW-CONTROLLED":
                             valStatus = 1;
                             break;
                         case "ACTIVE":
@@ -131,7 +128,76 @@ public class GetProcessStartersWorker implements Runnable {
 
 [builtinResource.serviceagent] = javax.management.openmbean.CompositeDataSupport(compositeType=javax.management.openmbean.CompositeType(name=GetProcessStarters,items=((itemName=Checkpointed Start,itemType=javax.management.openmbean.SimpleType(name=java.lang.Boolean)),(itemName=Completed,itemType=javax.management.openmbean.SimpleType(name=java.lang.Integer)),(itemName=Created,itemType=javax.management.openmbean.SimpleType(name=java.lang.Integer)),(itemName=CreationRate,itemType=javax.management.openmbean.SimpleType(name=java.lang.Integer)),(itemName=Duration,itemType=javax.management.openmbean.SimpleType(name=java.lang.Long)),(itemName=Name,itemType=javax.management.openmbean.SimpleType(name=java.lang.String)),(itemName=ProcessDef,itemType=javax.management.openmbean.SimpleType(name=java.lang.String)),(itemName=Running,itemType=javax.management.openmbean.SimpleType(name=java.lang.Integer)),(itemName=Start time,itemType=javax.management.openmbean.SimpleType(name=java.lang.String)),(itemName=Status,itemType=javax.management.openmbean.SimpleType(name=java.lang.String)),(itemName=Tracing,itemType=javax.management.openmbean.SimpleType(name=java.lang.Boolean)))),contents={Checkpointed Start=false, Completed=0, Created=0, CreationRate=0, Duration=12467, Name=, ProcessDef=builtinResource.serviceagent, Running=0, Start time=Jun 24, 2021 10:53:17 PM, Status=ACTIVE, Tracing=false})
 
+ */
+
+/*
+Method: GetProcessStarters
+
+Timeout(millisecs): 10000
+
+Description: Gets information about either active or inactive job creators or both
+
+Type: Open, Synchronous, IMPACT_INFO
+
+	Arguments:
+		name: ActiveOrInactive
+		type: java.lang.String
+		description: Specify Active to get info about active job creators, or Inactive to get info about inactive job creators.
+		isOpen: true
 
 
 
+	Returns:
+		name: return
+		type: COM.TIBCO.hawk.talon.TabularData
+		description: None
+		isOpen: true
+		elements:
+			name: ProcessDef
+			type: java.lang.String
+			description: Process definition that contains this process starter
+			isOpen: true
+			name: Name
+			type: java.lang.String
+			description: Process starter name
+			isOpen: true
+			name: Status
+			type: java.lang.String
+			description: Status: INACTIVE, ACTIVE, or FLOW-CONTROLLED
+			isOpen: true
+			name: Created
+			type: java.lang.Integer
+			description: Number of processes created
+			isOpen: true
+			name: CreationRate
+			type: java.lang.Integer
+			description: Rate of process creation (processes/hour)
+			isOpen: true
+			name: Running
+			type: java.lang.Integer
+			description: Number of processes currently running
+			isOpen: true
+			name: Completed
+			type: java.lang.Integer
+			description: Number of processes completed
+			isOpen: true
+			name: Start time
+			type: java.lang.String
+			description: Time at which the process starter started (milliseconds)
+			isOpen: true
+			name: Duration
+			type: java.lang.Long
+			description: Elapsed wall-clock time since the process starter started (milliseconds)
+			isOpen: true
+			name: Checkpointed Start
+			type: java.lang.Boolean
+			description: True if checkpoint and confirm is enabled
+			isOpen: true
+			name: Tracing
+			type: java.lang.Boolean
+			description: True if tracing is enabled for process starter
+			isOpen: true
+		columns:
+		columns: [ProcessDef, Name, Status, Created, CreationRate, Running, Completed, Start time, Duration, Checkpointed Start, Tracing]
+		indexColumns: [ProcessDef]
  */

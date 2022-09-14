@@ -47,3 +47,26 @@ public class GetProcessCountWorker implements Runnable {
         LOGGER.exiting(this.getClass().getCanonicalName(), "run");
     }
 }
+
+/*
+Method: GetProcessCount
+
+Timeout(millisecs): 10000
+
+Description: Gets total number of running processes and total number of queued processes
+
+Type: Open, Synchronous, IMPACT_INFO
+
+	Arguments: None
+
+	Returns:
+		name: return
+		type: COM.TIBCO.hawk.talon.CompositeData
+		description: None
+		isOpen: true
+		elements:
+			name: TotalRunningProcesses
+			type: java.lang.Integer
+			description: Number of running processes
+			isOpen: true
+ */

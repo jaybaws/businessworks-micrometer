@@ -17,10 +17,10 @@ public class GetMemoryUsageWorker implements Runnable {
     private MBeanServerConnection mbsc;
     private ObjectName objectName;
 
-    private AtomicLong metricMemUsed = Metrics.gauge("bwengine.memory.used", Arrays.asList(Tag.of("method", "GetMemoryUsage")), new AtomicLong(0));
-    private AtomicLong metricMemUsedPct = Metrics.gauge("bwengine.memory.used.pct", Arrays.asList(Tag.of("method", "GetMemoryUsage")), new AtomicLong(0));
-    private AtomicLong metricMemFree = Metrics.gauge("bwengine.memory.free", Arrays.asList(Tag.of("method", "GetMemoryUsage")), new AtomicLong(0));
-    private AtomicLong metricMemTotal = Metrics.gauge("bwengine.memory.total", Arrays.asList(Tag.of("method", "GetMemoryUsage")), new AtomicLong(0));
+    private AtomicLong metricMemUsed = Metrics.gauge("bwengine.memory.used", Arrays.asList(Tag.of("method", "GetMemoryUsage")), new AtomicLong(-1));
+    private AtomicLong metricMemUsedPct = Metrics.gauge("bwengine.memory.used.pct", Arrays.asList(Tag.of("method", "GetMemoryUsage")), new AtomicLong(-1));
+    private AtomicLong metricMemFree = Metrics.gauge("bwengine.memory.free", Arrays.asList(Tag.of("method", "GetMemoryUsage")), new AtomicLong(-1));
+    private AtomicLong metricMemTotal = Metrics.gauge("bwengine.memory.total", Arrays.asList(Tag.of("method", "GetMemoryUsage")), new AtomicLong(-1));
 
     public GetMemoryUsageWorker(MBeanServerConnection mbsc, ObjectName objectName) {
         this.mbsc = mbsc;
@@ -77,4 +77,39 @@ javax.management.openmbean.CompositeDataSupport(compositeType=javax.management.o
     contents={FreeBytes=50141632, PercentUsed=83, TotalBytes=308805632, UsedBytes=258664000}
 )
 
+ */
+
+/*
+Method: GetMemoryUsage
+
+Timeout(millisecs): 10000
+
+Description: Gets engine memory usage information.
+
+Type: Open, Synchronous, IMPACT_INFO
+
+	Arguments: None
+
+	Returns:
+		name: return
+		type: COM.TIBCO.hawk.talon.CompositeData
+		description: None
+		isOpen: true
+		elements:
+			name: TotalBytes
+			type: java.lang.Long
+			description: Total number of bytes allocated to the process (free+used)
+			isOpen: true
+			name: FreeBytes
+			type: java.lang.Long
+			description: Total number of available bytes
+			isOpen: true
+			name: UsedBytes
+			type: java.lang.Long
+			description: Total number of bytes in use
+			isOpen: true
+			name: PercentUsed
+			type: java.lang.Long
+			description: Percentage of total bytes that are in use.
+			isOpen: true
  */
