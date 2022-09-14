@@ -62,19 +62,19 @@ public class GetProcessStartersWorker implements Runnable {
                     String starterName = (String) resultItem.get("Name");
                     String status = (String) resultItem.get("Status");
 
-                    long valCompleted = (Long) resultItem.get("Completed");
+                    long valCompleted = (Integer) resultItem.get("Completed");
                     metric(processDefinition, starterName, "bwengine.starters.completed").set(valCompleted);
 
-                    long valCreated = (Long) resultItem.get("Created");
+                    long valCreated = (Integer) resultItem.get("Created");
                     metric(processDefinition, starterName, "bwengine.starters.created").set(valCreated);
 
-                    long valCreationRate = (Long) resultItem.get("CreationRate");
+                    long valCreationRate = (Integer) resultItem.get("CreationRate");
                     metric(processDefinition, starterName, "bwengine.starters.creationrate").set(valCreationRate);
 
                     long valDuration = (Long) resultItem.get("Duration");
                     metric(processDefinition, starterName, "bwengine.starters.duration").set(valDuration);
 
-                    long valRunning = (Long) resultItem.get("Running");
+                    long valRunning = (Integer) resultItem.get("Running");
                     metric(processDefinition, starterName, "bwengine.starters.running").set(valRunning);
 
                     long valStatus;
@@ -97,7 +97,7 @@ public class GetProcessStartersWorker implements Runnable {
                     }
                     metric(processDefinition, starterName, "bwengine.starters.status").set(valStatus);
 
-                    LOGGER.info(
+                    LOGGER.fine(
                             String.format(
                                     "[GetProcessStarters] completed=%d, created=%d, rate=%d, duration=%d, running=%d.",
                                     valCompleted,

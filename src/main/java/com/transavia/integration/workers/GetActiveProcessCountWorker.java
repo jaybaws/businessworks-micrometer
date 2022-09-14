@@ -33,7 +33,7 @@ public class GetActiveProcessCountWorker implements Runnable {
             if (valActiveProcessCount != null) {
                 activeProcessCount.set(valActiveProcessCount);
 
-                LOGGER.info(
+                LOGGER.fine(
                         String.format(
                                 "[GetActiveProcessCount] count=%d.",
                                 valActiveProcessCount
