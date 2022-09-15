@@ -1,8 +1,15 @@
 package com.transavia.integration.workers;
 import com.transavia.integration.MetricBridge;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
 import javax.management.MBeanServerConnection;
 import javax.management.ObjectName;
+import javax.management.openmbean.CompositeDataSupport;
 import javax.management.openmbean.TabularDataSupport;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -12,10 +19,30 @@ public class GetProcessDefinitionsWorker implements Runnable {
 
     private MBeanServerConnection mbsc;
     private ObjectName objectName;
+    private Map<String, AtomicLong> metrics = new HashMap<String, AtomicLong>();
 
     public GetProcessDefinitionsWorker(MBeanServerConnection mbsc, ObjectName objectName) {
         this.mbsc = mbsc;
         this.objectName = objectName;
+    }
+
+    private AtomicLong metric(String processDefinitionName, String metricName) {
+        String uniqueId = processDefinitionName + "/" + metricName;
+
+        AtomicLong m = metrics.get(uniqueId);
+        if (m == null) {
+            m = Metrics.gauge(
+                    metricName,
+                    Arrays.asList(
+                            Tag.of("method", "GetProcessDefinitions"),
+                            Tag.of("process", processDefinitionName)
+                    ),
+                    new AtomicLong(-1)
+            );
+            metrics.put(uniqueId, m);
+        }
+
+        return m;
     }
 
     @Override
@@ -26,8 +53,62 @@ public class GetProcessDefinitionsWorker implements Runnable {
             TabularDataSupport result = (TabularDataSupport) mbsc.invoke(objectName, "GetProcessDefinitions", null, null);
 
             if (result != null) {
-                // @TODO: process
+                for (Object value : result.values()) {
+                    CompositeDataSupport resultItem = (CompositeDataSupport) value;
 
+                    String process = (String) resultItem.get("Name");
+
+                    long valCreated = (Integer) resultItem.get("Created");
+                    metric(process, "bwengine.processdefinition.created").set(valCreated);
+
+                    long valSuspended = (Integer) resultItem.get("Suspended");
+                    metric(process, "bwengine.processdefinition.suspended").set(valSuspended);
+
+                    long valSwapped = (Integer) resultItem.get("Swapped");
+                    metric(process, "bwengine.processdefinition.swapped").set(valSwapped);
+
+                    long valQueued = (Integer) resultItem.get("Queued");
+                    metric(process, "bwengine.processdefinition.queued").set(valQueued);
+
+                    long valAborted = (Integer) resultItem.get("Aborted");
+                    metric(process, "bwengine.processdefinition.aborted").set(valAborted);
+
+                    long valCompleted = (Integer) resultItem.get("Completed");
+                    metric(process, "bwengine.processdefinition.completed").set(valCompleted);
+
+                    long valCheckpointed = (Integer) resultItem.get("Checkpointed");
+                    metric(process, "bwengine.processdefinition.checkpointed").set(valCheckpointed);
+
+                    long valTotalExecution = (Integer) resultItem.get("TotalExecution");
+                    metric(process, "bwengine.processdefinition.execution_total").set(valTotalExecution);
+
+                    long valAverageExecution = (Integer) resultItem.get("AverageExecution");
+                    metric(process, "bwengine.processdefinition.execution_avg").set(valAverageExecution);
+
+                    long valTotalElapsed = (Integer) resultItem.get("TotalElapsed");
+                    metric(process, "bwengine.processdefinition.elapsed_total").set(valTotalElapsed);
+
+                    long valAverageElapsed = (Integer) resultItem.get("AverageElapsed");
+                    metric(process, "bwengine.processdefinition.elapsed_avg").set(valAverageElapsed);
+
+                    long valMinElapsed = (Integer) resultItem.get("MinElapsed");
+                    metric(process, "bwengine.processdefinition.elapsed_min").set(valMinElapsed);
+
+                    long valMaxElapsed = (Integer) resultItem.get("MaxElapsed");
+                    metric(process, "bwengine.processdefinition.elapsed_max").set(valMaxElapsed);
+
+                    long valMinExecution = (Integer) resultItem.get("MinExecution");
+                    metric(process, "bwengine.processdefinition.execution_min").set(valMinExecution);
+
+                    long valMaxExecution = (Integer) resultItem.get("MaxExecution");
+                    metric(process, "bwengine.processdefinition.execution_max").set(valMaxExecution);
+
+                    long valMostRecentExecutionTime = (Integer) resultItem.get("MostRecentExecutionTime");
+                    metric(process, "bwengine.processdefinition.execution_recent").set(valMostRecentExecutionTime);
+
+                    long valMostRecentElapsedTime = (Integer) resultItem.get("MostRecentElapsedTime");
+                    metric(process, "bwengine.processdefinition.elapsed_recent").set(valMostRecentElapsedTime);
+                }
             }
         } catch (Throwable t) {
             LOGGER.log(Level.WARNING, "Exception invoking 'GetProcessDefinitions'...", t);

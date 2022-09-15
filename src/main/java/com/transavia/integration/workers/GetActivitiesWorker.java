@@ -1,7 +1,14 @@
 package com.transavia.integration.workers;
 import com.transavia.integration.MetricBridge;
+import io.micrometer.core.instrument.Metrics;
+import io.micrometer.core.instrument.Tag;
 import javax.management.*;
+import javax.management.openmbean.CompositeDataSupport;
 import javax.management.openmbean.TabularDataSupport;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -11,10 +18,32 @@ public class GetActivitiesWorker implements Runnable {
 
     private ObjectName objectName;
     private MBeanServerConnection mbsc;
+    private Map<String, AtomicLong> metrics = new HashMap<String, AtomicLong>();
 
     public GetActivitiesWorker(MBeanServerConnection mbsc, ObjectName objectName) {
         this.mbsc = mbsc;
         this.objectName = objectName;
+    }
+
+    private AtomicLong metric(String processDefinitionName, String activityName, String activityClassName, String metricName) {
+        String uniqueId = processDefinitionName + "/" + activityClassName + "/" + activityName + "/" + metricName;
+
+        AtomicLong m = metrics.get(uniqueId);
+        if (m == null) {
+            m = Metrics.gauge(
+                    metricName,
+                    Arrays.asList(
+                            Tag.of("method", "GetActivities"),
+                            Tag.of("process", processDefinitionName),
+                            Tag.of("activityClass", activityClassName),
+                            Tag.of("activity", activityName)
+                    ),
+                    new AtomicLong(-1)
+            );
+            metrics.put(uniqueId, m);
+        }
+
+        return m;
     }
 
     @Override
@@ -25,8 +54,43 @@ public class GetActivitiesWorker implements Runnable {
             TabularDataSupport result = (TabularDataSupport) mbsc.invoke(objectName, "GetActivities", new Object[] { null }, new String[] { String.class.getName() });
 
             if (result != null) {
-                // @TODO: process!
+                for (Object value : result.values()) {
+                    CompositeDataSupport resultItem = (CompositeDataSupport) value;
 
+                    String process = (String) resultItem.get("ProcessDefName");
+                    String activity = (String) resultItem.get("Name");
+                    String activityClass = (String) resultItem.get("ActivityClass");
+
+                    long valExecutionCount = (Integer) resultItem.get("ExecutionCount");
+                    metric(process, activity, activityClass, "bwengine.activity.executioncount").set(valExecutionCount);
+
+                    long valElapsedTime = (Integer) resultItem.get("ElapsedTime");
+                    metric(process, activity, activityClass, "bwengine.activity.elapsedtime").set(valElapsedTime);
+
+                    long valExecutionTime = (Integer) resultItem.get("ExecutionTime");
+                    metric(process, activity, activityClass, "bwengine.activity.executiontime").set(valExecutionTime);
+
+                    long valErrorCount = (Integer) resultItem.get("ErrorCount");
+                    metric(process, activity, activityClass, "bwengine.activity.errorcount").set(valErrorCount);
+
+                    long valMinElapsedTime = (Integer) resultItem.get("MinElapsedTime");
+                    metric(process, activity, activityClass, "bwengine.activity.elapsedtime_min").set(valMinElapsedTime);
+
+                    long valMaxElapsedTime = (Integer) resultItem.get("MaxElapsedTime");
+                    metric(process, activity, activityClass, "bwengine.activity.elapsedtime_max").set(valMaxElapsedTime);
+
+                    long valMinExecutionTime = (Integer) resultItem.get("MinExecutionTime");
+                    metric(process, activity, activityClass, "bwengine.activity.executiontime_min").set(valMinExecutionTime);
+
+                    long valMaxExecutionTime = (Integer) resultItem.get("MaxExecutionTime");
+                    metric(process, activity, activityClass, "bwengine.activity.executiontime_max").set(valMaxExecutionTime);
+
+                    long valMostRecentElapsedTime = (Integer) resultItem.get("MostRecentElapsedTime");
+                    metric(process, activity, activityClass, "bwengine.activity.elapsedtime_recent").set(valMostRecentElapsedTime);
+
+                    long valMostRecentExecutionTime = (Integer) resultItem.get("MostRecentExecutionTime");
+                    metric(process, activity, activityClass, "bwengine.activity.executiontime_recent").set(valMostRecentExecutionTime);
+                }
             }
         } catch (Throwable t) {
             LOGGER.log(Level.WARNING, "Exception invoking 'GetActivities'...", t);
