@@ -58,55 +58,55 @@ public class GetProcessDefinitionsWorker implements Runnable {
 
                     String process = (String) resultItem.get("Name");
 
-                    long valCreated = (Integer) resultItem.get("Created");
+                    long valCreated = (Long) resultItem.get("Created");
                     metric(process, "bwengine.processdefinition.created").set(valCreated);
 
-                    long valSuspended = (Integer) resultItem.get("Suspended");
+                    long valSuspended = (Long) resultItem.get("Suspended");
                     metric(process, "bwengine.processdefinition.suspended").set(valSuspended);
 
-                    long valSwapped = (Integer) resultItem.get("Swapped");
+                    long valSwapped = (Long) resultItem.get("Swapped");
                     metric(process, "bwengine.processdefinition.swapped").set(valSwapped);
 
-                    long valQueued = (Integer) resultItem.get("Queued");
+                    long valQueued = (Long) resultItem.get("Queued");
                     metric(process, "bwengine.processdefinition.queued").set(valQueued);
 
-                    long valAborted = (Integer) resultItem.get("Aborted");
+                    long valAborted = (Long) resultItem.get("Aborted");
                     metric(process, "bwengine.processdefinition.aborted").set(valAborted);
 
-                    long valCompleted = (Integer) resultItem.get("Completed");
+                    long valCompleted = (Long) resultItem.get("Completed");
                     metric(process, "bwengine.processdefinition.completed").set(valCompleted);
 
-                    long valCheckpointed = (Integer) resultItem.get("Checkpointed");
+                    long valCheckpointed = (Long) resultItem.get("Checkpointed");
                     metric(process, "bwengine.processdefinition.checkpointed").set(valCheckpointed);
 
-                    long valTotalExecution = (Integer) resultItem.get("TotalExecution");
+                    long valTotalExecution = (Long) resultItem.get("TotalExecution");
                     metric(process, "bwengine.processdefinition.execution_total").set(valTotalExecution);
 
-                    long valAverageExecution = (Integer) resultItem.get("AverageExecution");
+                    long valAverageExecution = (Long) resultItem.get("AverageExecution");
                     metric(process, "bwengine.processdefinition.execution_avg").set(valAverageExecution);
 
-                    long valTotalElapsed = (Integer) resultItem.get("TotalElapsed");
+                    long valTotalElapsed = (Long) resultItem.get("TotalElapsed");
                     metric(process, "bwengine.processdefinition.elapsed_total").set(valTotalElapsed);
 
-                    long valAverageElapsed = (Integer) resultItem.get("AverageElapsed");
+                    long valAverageElapsed = (Long) resultItem.get("AverageElapsed");
                     metric(process, "bwengine.processdefinition.elapsed_avg").set(valAverageElapsed);
 
-                    long valMinElapsed = (Integer) resultItem.get("MinElapsed");
+                    long valMinElapsed = (Long) resultItem.get("MinElapsed");
                     metric(process, "bwengine.processdefinition.elapsed_min").set(valMinElapsed);
 
-                    long valMaxElapsed = (Integer) resultItem.get("MaxElapsed");
+                    long valMaxElapsed = (Long) resultItem.get("MaxElapsed");
                     metric(process, "bwengine.processdefinition.elapsed_max").set(valMaxElapsed);
 
-                    long valMinExecution = (Integer) resultItem.get("MinExecution");
+                    long valMinExecution = (Long) resultItem.get("MinExecution");
                     metric(process, "bwengine.processdefinition.execution_min").set(valMinExecution);
 
-                    long valMaxExecution = (Integer) resultItem.get("MaxExecution");
+                    long valMaxExecution = (Long) resultItem.get("MaxExecution");
                     metric(process, "bwengine.processdefinition.execution_max").set(valMaxExecution);
 
-                    long valMostRecentExecutionTime = (Integer) resultItem.get("MostRecentExecutionTime");
+                    long valMostRecentExecutionTime = (Long) resultItem.get("MostRecentExecutionTime");
                     metric(process, "bwengine.processdefinition.execution_recent").set(valMostRecentExecutionTime);
 
-                    long valMostRecentElapsedTime = (Integer) resultItem.get("MostRecentElapsedTime");
+                    long valMostRecentElapsedTime = (Long) resultItem.get("MostRecentElapsedTime");
                     metric(process, "bwengine.processdefinition.elapsed_recent").set(valMostRecentElapsedTime);
                 }
             }

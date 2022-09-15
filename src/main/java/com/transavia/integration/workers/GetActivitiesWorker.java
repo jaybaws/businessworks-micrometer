@@ -61,34 +61,34 @@ public class GetActivitiesWorker implements Runnable {
                     String activity = (String) resultItem.get("Name");
                     String activityClass = (String) resultItem.get("ActivityClass");
 
-                    long valExecutionCount = (Integer) resultItem.get("ExecutionCount");
+                    long valExecutionCount = (Long) resultItem.get("ExecutionCount");
                     metric(process, activity, activityClass, "bwengine.activity.executioncount").set(valExecutionCount);
 
-                    long valElapsedTime = (Integer) resultItem.get("ElapsedTime");
+                    long valElapsedTime = (Long) resultItem.get("ElapsedTime");
                     metric(process, activity, activityClass, "bwengine.activity.elapsedtime").set(valElapsedTime);
 
-                    long valExecutionTime = (Integer) resultItem.get("ExecutionTime");
+                    long valExecutionTime = (Long) resultItem.get("ExecutionTime");
                     metric(process, activity, activityClass, "bwengine.activity.executiontime").set(valExecutionTime);
 
-                    long valErrorCount = (Integer) resultItem.get("ErrorCount");
+                    long valErrorCount = (Long) resultItem.get("ErrorCount");
                     metric(process, activity, activityClass, "bwengine.activity.errorcount").set(valErrorCount);
 
-                    long valMinElapsedTime = (Integer) resultItem.get("MinElapsedTime");
+                    long valMinElapsedTime = (Long) resultItem.get("MinElapsedTime");
                     metric(process, activity, activityClass, "bwengine.activity.elapsedtime_min").set(valMinElapsedTime);
 
-                    long valMaxElapsedTime = (Integer) resultItem.get("MaxElapsedTime");
+                    long valMaxElapsedTime = (Long) resultItem.get("MaxElapsedTime");
                     metric(process, activity, activityClass, "bwengine.activity.elapsedtime_max").set(valMaxElapsedTime);
 
-                    long valMinExecutionTime = (Integer) resultItem.get("MinExecutionTime");
+                    long valMinExecutionTime = (Long) resultItem.get("MinExecutionTime");
                     metric(process, activity, activityClass, "bwengine.activity.executiontime_min").set(valMinExecutionTime);
 
-                    long valMaxExecutionTime = (Integer) resultItem.get("MaxExecutionTime");
+                    long valMaxExecutionTime = (Long) resultItem.get("MaxExecutionTime");
                     metric(process, activity, activityClass, "bwengine.activity.executiontime_max").set(valMaxExecutionTime);
 
-                    long valMostRecentElapsedTime = (Integer) resultItem.get("MostRecentElapsedTime");
+                    long valMostRecentElapsedTime = (Long) resultItem.get("MostRecentElapsedTime");
                     metric(process, activity, activityClass, "bwengine.activity.elapsedtime_recent").set(valMostRecentElapsedTime);
 
-                    long valMostRecentExecutionTime = (Integer) resultItem.get("MostRecentExecutionTime");
+                    long valMostRecentExecutionTime = (Long) resultItem.get("MostRecentExecutionTime");
                     metric(process, activity, activityClass, "bwengine.activity.executiontime_recent").set(valMostRecentExecutionTime);
                 }
             }
