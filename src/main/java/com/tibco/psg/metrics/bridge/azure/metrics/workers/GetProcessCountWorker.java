@@ -1,5 +1,5 @@
-package com.transavia.integration.workers;
-import com.transavia.integration.MetricBridge;
+package com.tibco.psg.metrics.bridge.azure.metrics.workers;
+import com.tibco.psg.metrics.MetricBridge;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tag;
 import javax.management.MBeanServerConnection;
@@ -9,16 +9,16 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-public class GetActiveProcessCountWorker implements Runnable {
+public class GetProcessCountWorker implements Runnable {
 
     private static final Logger LOGGER = Logger.getLogger(MetricBridge.class.getName());
 
     private MBeanServerConnection mbsc;
     private ObjectName objectName;
 
-    private AtomicInteger activeProcessCount = Metrics.gauge("bwengine.activeprocess.count", Arrays.asList(Tag.of("method", "GetActiveProcessCount")), new AtomicInteger(-1));
+    private AtomicInteger processCount = Metrics.gauge("bwengine.process.count", Arrays.asList(Tag.of("method", "GetProcessCount")), new AtomicInteger(-1));
 
-    public GetActiveProcessCountWorker(MBeanServerConnection mbsc, ObjectName objectName) {
+    public GetProcessCountWorker(MBeanServerConnection mbsc, ObjectName objectName) {
         this.mbsc = mbsc;
         this.objectName = objectName;
     }
@@ -28,20 +28,20 @@ public class GetActiveProcessCountWorker implements Runnable {
         LOGGER.entering(this.getClass().getCanonicalName(), "run");
 
         try {
-            Integer valActiveProcessCount = (Integer) mbsc.invoke(objectName, "GetActiveProcessCount", null, null);
+            Integer valProcessCount = (Integer) mbsc.invoke(objectName, "GetProcessCount", null, null);
 
-            if (valActiveProcessCount != null) {
-                activeProcessCount.set(valActiveProcessCount);
+            if (valProcessCount != null) {
+                processCount.set(valProcessCount);
 
                 LOGGER.fine(
                         String.format(
-                                "[GetActiveProcessCount] count=%d.",
-                                valActiveProcessCount
+                                "[GetProcessCount] count=%d.",
+                                valProcessCount
                         )
                 );
             }
         } catch (Throwable t) {
-            LOGGER.log(Level.WARNING, "Exception invoking 'GetActiveProcessCount'...", t);
+            LOGGER.log(Level.WARNING, "Exception invoking 'GetProcessCount'...", t);
         }
 
         LOGGER.exiting(this.getClass().getCanonicalName(), "run");
@@ -49,11 +49,11 @@ public class GetActiveProcessCountWorker implements Runnable {
 }
 
 /*
-Method: GetActiveProcessCount
+Method: GetProcessCount
 
 Timeout(millisecs): 10000
 
-Description: Gets total number of active, not paged, processes
+Description: Gets total number of running processes and total number of queued processes
 
 Type: Open, Synchronous, IMPACT_INFO
 
@@ -65,8 +65,8 @@ Type: Open, Synchronous, IMPACT_INFO
 		description: None
 		isOpen: true
 		elements:
-			name: TotalActiveProcesses
+			name: TotalRunningProcesses
 			type: java.lang.Integer
-			description: Number of active, not paged, processes
+			description: Number of running processes
 			isOpen: true
  */

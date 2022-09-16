@@ -1,6 +1,6 @@
-package com.transavia.integration.workers;
+package com.tibco.psg.metrics.bridge.azure.metrics.workers;
 
-import com.transavia.integration.MetricBridge;
+import com.tibco.psg.metrics.MetricBridge;
 import io.micrometer.core.instrument.Metrics;
 import io.micrometer.core.instrument.Tag;
 

@@ -1,11 +1,8 @@
-package com.transavia.integration;
-import com.transavia.integration.util.BWUtils;
-import com.transavia.integration.workers.*;
-import io.micrometer.azuremonitor.AzureMonitorConfig;
-import io.micrometer.azuremonitor.AzureMonitorMeterRegistry;
+package com.tibco.psg.metrics;
+import com.tibco.psg.metrics.bridge.azure.logging.AzureLoggerBridge;
+import com.tibco.psg.metrics.bridge.azure.metrics.workers.*;
+import com.tibco.psg.metrics.util.BWUtils;
 import io.micrometer.core.instrument.*;
-import io.micrometer.graphite.GraphiteConfig;
-import io.micrometer.graphite.GraphiteMeterRegistry;
 import javax.management.*;
 import javax.management.relation.MBeanServerNotificationFilter;
 import java.lang.management.ManagementFactory;
@@ -16,26 +13,19 @@ import java.util.logging.*;
 
 public class MetricBridge implements NotificationListener {
 
+    private static final String c_defaultLogLevel = "INFO";
+    private static final String c_jvm_arg_jmx = "Jmx.Enabled";
     private static final int c_executorService_corePoolSize = 10;
 
-    private static final String c_jvm_arg_prefix = "com.transavia.integration";
-
-    private static final String c_jvm_arg_registries = c_jvm_arg_prefix + ".registries";
+    private static final String c_jvm_arg_prefix = MetricBridge.class.getPackage().getName();
 
     private static final String c_jvm_arg_logLevel = c_jvm_arg_prefix + ".logLevel";
+
+    private static final String c_jvm_arg_bridgelogs = c_jvm_arg_prefix + ".bridgelogs";
 
     private static final String c_jvm_arg_bwengine_domain = c_jvm_arg_prefix + ".bwengine.domain";
     private static final String c_jvm_arg_bwengine_application = c_jvm_arg_prefix + ".bwengine.application";
     private static final String c_jvm_arg_bwengine_instance = c_jvm_arg_prefix + ".bwengine.instance";
-
-    private static final String c_jvm_arg_graphite_metricPattern = c_jvm_arg_prefix + ".graphite.metricPattern";
-
-    private static final String c_jvm_arg_graphite_metricPrefix = c_jvm_arg_prefix + ".graphite.prefix";
-    private static final String c_jvm_arg_graphite_metricPrefix_defaultValue = "integration";
-
-    private static final String c_jvm_arg_graphite_metricPattern_defaultValue = "prefix,domain,application,instance,method";
-
-    private static final String c_jvm_arg_jmx = "Jmx.Enabled";
 
     private static final Logger LOGGER = Logger.getLogger(MetricBridge.class.getName());
 
@@ -47,12 +37,11 @@ public class MetricBridge implements NotificationListener {
         return true; // @TODO
     }
 
-    private static boolean addGraphiteMeterRegistry() {
-        return System.getProperty(c_jvm_arg_registries, "").contains("Graphite");
-    }
-
-    private static boolean addAzureMonitorMeterRegistry() {
-        return System.getProperty(c_jvm_arg_registries, "").contains("AzureMonitor");
+    private static boolean doBridgeLogs() {
+        String prop = System.getProperty(c_jvm_arg_bridgelogs, "false");
+        boolean doIt = Boolean.valueOf(prop);
+        LOGGER.info(String.format("doBridgeLogs (%s) is: %s.", c_jvm_arg_bridgelogs, prop));
+        return doIt;
     }
 
     @SuppressWarnings("unused")
@@ -60,15 +49,16 @@ public class MetricBridge implements NotificationListener {
         if (isBusinessWorksEngine()) {
             LOGGER.info("Looks like a BusinessWorks engine, so instrumenting!");
             MetricBridge bridge = new MetricBridge();
+            LOGGER.info("End of instrumentation!");
         } else {
-            LOGGER.info("Not a BusinessWorks engine. Exiting and not instrumenting...");
+            LOGGER.warning("Not a BusinessWorks engine. Exiting and not instrumenting...");
         }
     }
 
     public MetricBridge() {
-        String level = System.getProperty(c_jvm_arg_logLevel, "INFO");
+        String level = System.getProperty(c_jvm_arg_logLevel, c_defaultLogLevel);
         LOGGER.setLevel(Level.parse(level));
-        LOGGER.config(String.format("Set logLevel to '%s'.", level));
+        LOGGER.info(String.format("Set logLevel to '%s'.", level));
 
         /**
          * Get the MBeanServer where the bwengine's MBean will be hosted. It will be in the default one (platformMBeanServer)
@@ -88,12 +78,6 @@ public class MetricBridge implements NotificationListener {
         LOGGER.info(String.format("BWEngine '%s' parsed as domain:%s, application:%s, instance:%s.", engineAMIDisplayName, domain, application, instance));
 
         /**
-         * Construct the MicroMeter metric registry, based on the Graphite configuration.
-         * Also, pass on the determined <prefix>, <domain>, <application> and <instance>.
-         */
-
-
-        /**
          * Set up the global (composite) Metric registry. Provide the global config generically.
          */
         Metrics.globalRegistry.config().commonTags(
@@ -101,64 +85,6 @@ public class MetricBridge implements NotificationListener {
                 "application", application,
                 "instance", instance
         );
-
-        // Metrics.addRegistry(new SimpleMeterRegistry());
-
-        /**
-         * Set up a GraphiteMeterRegistry, and add it to ghe global (composite) registry
-         */
-        if (addGraphiteMeterRegistry()) {
-            /**
-             * Define the configuration to our Graphite back-end. We read from a JVM argument, but default to
-             * 'localhost' if it is absent.
-             */
-            GraphiteConfig graphiteConfig = new GraphiteConfig() {
-
-                @Override
-                public String[] tagsAsPrefix() {
-                    String prop = System.getProperty(c_jvm_arg_graphite_metricPattern, c_jvm_arg_graphite_metricPattern_defaultValue);
-
-                    LOGGER.config(String.format("tagsAsPrefix property set to '%s'.", prop));
-
-                    return prop.split(",");
-                }
-
-                @Override
-                public String get(String k) {
-                    String key = c_jvm_arg_prefix + "." + k;
-                    String value = System.getProperty(key);
-
-                    LOGGER.config(String.format("GraphiteConfig queried for property '%s'. Returned value '%s'.", key, value));
-
-                    return value;
-                }
-            };
-
-            String prefix = System.getProperty(c_jvm_arg_graphite_metricPrefix, c_jvm_arg_graphite_metricPrefix_defaultValue);
-
-            MeterRegistry graphiteRegistry = new GraphiteMeterRegistry(graphiteConfig, Clock.SYSTEM);
-            graphiteRegistry.config().commonTags("prefix", prefix);
-            Metrics.addRegistry(graphiteRegistry);
-        }
-
-        if (addAzureMonitorMeterRegistry()) {
-            AzureMonitorConfig azureMonitorConfig = new AzureMonitorConfig() {
-                @Override
-                public String get(String k) {
-                    String key = c_jvm_arg_prefix + "." + k;
-                    String value = System.getProperty(key);
-
-                    LOGGER.info(String.format("AzureMonitorConfig queried for property '%s'. Returned value '%s'.", key, value));
-
-                    return value;
-                }
-            };
-
-            MeterRegistry azureMonitorRegistry = new AzureMonitorMeterRegistry(azureMonitorConfig, Clock.SYSTEM);
-            Metrics.addRegistry(azureMonitorRegistry);
-        }
-
-        LOGGER.config("Constructed and registered the metric registry");
 
         /**
          * Listen to new MBean's being registered.
@@ -183,10 +109,15 @@ public class MetricBridge implements NotificationListener {
 
             // Force the bwengine to enable JMX, otherwise our plan dies in vain...
             System.setProperty(c_jvm_arg_jmx, "true");
-            LOGGER.config("Programmatically enabled JMX on the BWEngine that's about to start.");
+            LOGGER.info("Programmatically enabled JMX on the BWEngine that's about to start.");
 
         } catch (Throwable t) {
             LOGGER.log(Level.SEVERE, "Unable to register as an MBeanServer notification listener!", t);
+        }
+
+        if (doBridgeLogs()) {
+            AzureLoggerBridge.instrument();
+            LOGGER.info("Programmatically enabled bridging of logs.");
         }
     }
 
@@ -209,18 +140,16 @@ public class MetricBridge implements NotificationListener {
                 executorService = Executors.newScheduledThreadPool(c_executorService_corePoolSize);
 
                 /**
-                 * Schedule all our workers!
-                 *
-                 * Spread the CPU load by setting progressively increasing initlayDelay values.
-                 *
+                 * Schedule all our workers! -- Spread the CPU load by setting progressively increasing initDelay values.
                  */
-                executorService.scheduleWithFixedDelay(new GetMemoryUsageWorker(server, engineHandle), 5, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetProcessStartersWorker(server, engineHandle), 10, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetProcessDefinitionsWorker(server, engineHandle), 15, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetActivitiesWorker(server, engineHandle), 20, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetActiveProcessCountWorker(server, engineHandle), 25, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetProcessCountWorker(server, engineHandle), 30, 60, TimeUnit.SECONDS);
-                executorService.scheduleWithFixedDelay(new GetExecInfoWorker(server, engineHandle), 35, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetExecInfoWorker(server, engineHandle), 5, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetMemoryUsageWorker(server, engineHandle), 10, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetProcessCountWorker(server, engineHandle), 15, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetActiveProcessCountWorker(server, engineHandle), 20, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetProcessStartersWorker(server, engineHandle), 25, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetProcessDefinitionsWorker(server, engineHandle), 30, 60, TimeUnit.SECONDS);
+                executorService.scheduleWithFixedDelay(new GetActivitiesWorker(server, engineHandle), 35, 60, TimeUnit.SECONDS);
+
                 LOGGER.info("Scheduled the workers!");
 
             } else if (MBeanServerNotification.UNREGISTRATION_NOTIFICATION.equals(mbs.getType())) {
@@ -233,12 +162,3 @@ public class MetricBridge implements NotificationListener {
         }
     }
 }
-
-/*
- * Some more good reads:
- *
- * https://docs.microsoft.com/en-us/azure/azure-monitor/app/java-in-process-agent#send-custom-metrics-using-micrometer
- * https://micrometer.io/docs/concepts#_global_registry
- * https://micrometer.io/docs/concepts#_gauges
- *
- */

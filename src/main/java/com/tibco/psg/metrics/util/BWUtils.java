@@ -1,4 +1,4 @@
-package com.transavia.integration.util;
+package com.tibco.psg.metrics.util;
 import java.io.FileInputStream;
 import java.util.Properties;
 
